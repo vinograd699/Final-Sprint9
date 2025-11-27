@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
+	"sync"
+	"time"
 )
 
 const (
@@ -9,32 +12,72 @@ const (
 	CHUNKS = 8
 )
 
-// generateRandomElements generates random elements.
+// generateRandomElements creates a slice of random integers
 func generateRandomElements(size int) []int {
-	// ваш код здесь
+	if size <= 0 {
+		return []int{}
+	}
+
+	slice := make([]int, 0, size)
+	rand.Seed(time.Now().UnixNano())
+	for i := range slice {
+		slice[i] = rand.Intn(1_000_000) + 1
+	}
+	return slice
 }
 
-// maximum returns the maximum number of elements.
+// maximum returns the max value in a slice
 func maximum(data []int) int {
-	// ваш код здесь
+	if len(data) == 0 {
+		return 0
+	}
+
+	max := data[0]
+	for _, v := range data[1:] {
+		if v > max {
+			max = v
+		}
+	}
+	return max
 }
 
-// maxChunks returns the maximum number of elements in a chunks.
+// maxChunks finds max in each chunk using goroutines
 func maxChunks(data []int) int {
-	// ваш код здесь
+	if len(data) == 0 {
+		return 0
+	}
+
+	var wg sync.WaitGroup
+	maxElements := make([]int, CHUNKS)
+	chunkSize := len(data) / CHUNKS
+	wg.Add(CHUNKS)
+
+	for i := range CHUNKS {
+		start := i * chunkSize
+		end := start + chunkSize
+
+		go func(idx, s, e int) {
+			defer wg.Done()
+			maxElements[idx] = maximum(data[s:e])
+		}(i, start, end)
+	}
+	wg.Wait()
+	return maximum(maxElements)
 }
 
 func main() {
-	fmt.Printf("Генерируем %d целых чисел", SIZE)
-	// ваш код здесь
+	fmt.Printf("Generating %d integers\n", SIZE)
+	elements := generateRandomElements(SIZE)
 
-	fmt.Println("Ищем максимальное значение в один поток")
-	// ваш код здесь
+	fmt.Println("Finding max in single thread")
+	start := time.Now()
+	max := maximum(elements)
+	elapsed := time.Since(start).Milliseconds()
+	fmt.Printf("Max value: %d\nSearch time: %d ms\n", max, elapsed)
 
-	fmt.Printf("Максимальное значение элемента: %d\nВремя поиска: %d ms\n", max, elapsed)
-
-	fmt.Printf("Ищем максимальное значение в %d потоков", CHUNKS)
-	// ваш код здесь
-
-	fmt.Printf("Максимальное значение элемента: %d\nВремя поиска: %d ms\n", max, elapsed)
+	fmt.Printf("Finding max using %d goroutines\n", CHUNKS)
+	start = time.Now()
+	max = maxChunks(elements)
+	elapsed = time.Since(start).Milliseconds()
+	fmt.Printf("Max value: %d\nSearch time: %d ms\n", max, elapsed)
 }
