@@ -18,15 +18,14 @@ func generateRandomElements(size int) []int {
 		return []int{}
 	}
 
-	slice := make([]int, 0, size)
-	rand.Seed(time.Now().UnixNano())
+	slice := make([]int, size)
 	for i := range slice {
-		slice[i] = rand.Intn(1_000_000) + 1
+		slice[i] = rand.Intn() + 1
 	}
 	return slice
 }
 
-// maximum returns the max value in a slice
+// maximum returns max value in a slice
 func maximum(data []int) int {
 	if len(data) == 0 {
 		return 0
@@ -41,28 +40,48 @@ func maximum(data []int) int {
 	return max
 }
 
-// maxChunks finds max in each chunk using goroutines
+// maxChunks finds max in parallel using goroutines
 func maxChunks(data []int) int {
 	if len(data) == 0 {
 		return 0
 	}
 
 	var wg sync.WaitGroup
-	maxElements := make([]int, CHUNKS)
-	chunkSize := len(data) / CHUNKS
-	wg.Add(CHUNKS)
+	chunkSize := (len(data) + CHUNKS - 1) / CHUNKS
+	results := make(chan int, CHUNKS)
 
-	for i := range CHUNKS {
+	// Launch CHUNKS goroutines to process each chunk
+	for i := 0; i < CHUNKS; i++ {
 		start := i * chunkSize
 		end := start + chunkSize
+		if end > len(data) {
+			end = len(data)
+		}
+		if start >= len(data) {
+			continue
+		}
 
-		go func(idx, s, e int) {
+		wg.Add(1)
+		go func(s, e int) {
 			defer wg.Done()
-			maxElements[idx] = maximum(data[s:e])
-		}(i, start, end)
+			results <- maximum(data[s:e])
+		}(start, end)
 	}
-	wg.Wait()
-	return maximum(maxElements)
+
+	// Close results channel when all goroutines are done
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	// Find max among all chunk results
+	max := 0
+	for v := range results {
+		if v > max {
+			max = v
+		}
+	}
+	return max
 }
 
 func main() {

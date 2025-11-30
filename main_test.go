@@ -2,52 +2,56 @@ package main
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// TestGenerateRandomElements checks edge cases for maximum function
+// TestGenerateRandomElements checks if generateRandomElements returns correct slice size and values
 func TestGenerateRandomElements(t *testing.T) {
 	tests := []struct {
-		name string
-		data []int
-		want int
+		name     string
+		size     int
+		expected int
 	}{
-		{"nilSlice", []int{}, 0},               // Empty slice → 0
-		{"oneElem", []int{1}, 1},               // One element
-		{"equalElem", []int{1, 1, 1, 1}, 1},    // All values equal
-		{"maxStart", []int{100, 2, 3, 4}, 100}, // Max at start
-		{"maxEnd", []int{1, 2, 3, 999}, 999},   // Max at end
+		{"ZeroSize", 0, 0},
+		{"NegativeSize", -10, 0},
+		{"SmallSize", 5, 5},
+		{"LargeSize", 1000, 1000},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := maximum(tt.data); got != tt.want {
-				t.Errorf("maximum() = %d, want %d", got, tt.want)
+			slice := generateRandomElements(tt.size)
+			require.NotNil(t, slice)
+			assert.Equal(t, tt.expected, len(slice))
+			for _, v := range slice {
+				assert.Greater(t, v, 0)
 			}
 		})
 	}
 }
 
-// TestMaximum verifies maximum function with various inputs
+// TestMaximum checks if maximum function returns correct max value for different inputs
 func TestMaximum(t *testing.T) {
 	tests := []struct {
-		name string
-		data []int
-		want int
+		name     string
+		input    []int
+		expected int
 	}{
-		{"Empty slice", []int{}, 0},                    // Empty slice
-		{"Single element", []int{42}, 42},              // One value
-		{"Multiple elements", []int{1, 3, 2, 5, 4}, 5}, // Mixed values
-		{"All equal", []int{7, 7, 7}, 7},               // Identical items
-		{"Mixed numbers", []int{1, 0, 10, 5}, 10},      // Unordered
-		{"Nil slice", nil, 0},                          // Nil input
+		{"NilSlice", nil, 0},
+		{"EmptySlice", []int{}, 0},
+		{"OneElement", []int{99}, 99},
+		{"Ascending", []int{10, 20, 30, 40, 50}, 50},
+		{"Descending", []int{70, 60, 50, 40, 30}, 70},
+		{"Unordered", []int{17, 3, 88, 42, 12}, 88},
+		{"AllEqual", []int{111, 111, 111}, 111},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := maximum(tt.data)
-			if got != tt.want {
-				t.Errorf("maximum(%v) = %d, want %d", tt.data, got, tt.want)
-			}
+			result := maximum(tt.input)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
