@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"sync"
 	"time"
@@ -20,69 +19,60 @@ func generateRandomElements(size int) []int {
 	}
 
 	slice := make([]int, size)
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := range slice {
-		slice[i] = int(rand.Int63n(math.MaxInt64)) + 1
+		slice[i] = rng.Int() + 1 // Ensure positive values
 	}
 	return slice
 }
 
-// maximum returns max value in a slice
+// maximum returns the max value in a slice
 func maximum(data []int) int {
 	if len(data) == 0 {
 		return 0
 	}
 
 	max := data[0]
-	for _, v := range data[1:] {
-		if v > max {
-			max = v
+	for i := 1; i < len(data); i++ {
+		if data[i] > max {
+			max = data[i]
 		}
 	}
 	return max
 }
 
-// maxChunks finds max in parallel using goroutines
+// maxChunks finds max in each chunk using goroutines
 func maxChunks(data []int) int {
 	if len(data) == 0 {
 		return 0
 	}
 
 	var wg sync.WaitGroup
-	chunkSize := (len(data) + CHUNKS - 1) / CHUNKS
-	results := make(chan int, CHUNKS)
+	var mu sync.Mutex // Protects access to maxElements
+	maxElements := make([]int, CHUNKS)
+	chunkSize := len(data) / CHUNKS
+	wg.Add(CHUNKS)
 
-	// Launch CHUNKS goroutines to process each chunk
 	for i := 0; i < CHUNKS; i++ {
 		start := i * chunkSize
 		end := start + chunkSize
-		if end > len(data) {
+
+		// Handle tail in the last chunk
+		if i == CHUNKS-1 {
 			end = len(data)
 		}
-		if start >= len(data) {
-			continue
-		}
 
-		wg.Add(1)
-		go func(s, e int) {
+		chunk := data[start:end]
+		go func(idx int, c []int) {
 			defer wg.Done()
-			results <- maximum(data[s:e])
-		}(start, end)
+			m := maximum(c)
+			mu.Lock()
+			maxElements[idx] = m
+			mu.Unlock()
+		}(i, chunk)
 	}
-
-	// Close results channel when all goroutines are done
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	// Find max among all chunk results
-	max := 0
-	for v := range results {
-		if v > max {
-			max = v
-		}
-	}
-	return max
+	wg.Wait()
+	return maximum(maxElements)
 }
 
 func main() {
@@ -97,7 +87,11 @@ func main() {
 
 	fmt.Printf("Finding max using %d goroutines\n", CHUNKS)
 	start = time.Now()
-	max = maxChunks(elements)
+	maxParallel := maxChunks(elements)
 	elapsed = time.Since(start).Milliseconds()
-	fmt.Printf("Max value: %d\nSearch time: %d ms\n", max, elapsed)
+	fmt.Printf("Max value: %d\nSearch time: %d ms\n", maxParallel, elapsed)
+
+	if max != maxParallel {
+		fmt.Printf("WARNING: Results differ! Single: %d, Parallel: %d\n", max, maxParallel)
+	}
 }
