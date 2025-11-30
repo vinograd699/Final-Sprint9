@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"sync"
 	"time"
@@ -20,7 +21,7 @@ func generateRandomElements(size int) []int {
 
 	slice := make([]int, size)
 	for i := range slice {
-		slice[i] = rand.Intn() + 1
+		slice[i] = int(rand.Int63n(math.MaxInt64)) + 1
 	}
 	return slice
 }
